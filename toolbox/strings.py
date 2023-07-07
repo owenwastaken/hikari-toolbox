@@ -1,7 +1,8 @@
 import datetime
 import re
 import typing as t
-from enum import Enum, IntFlag
+from enum import Enum
+from enum import IntFlag
 
 __all__: t.Sequence[str] = (
     "format_dt",
@@ -50,46 +51,171 @@ class MarkdownFormat(IntFlag):
     """Refers to no formatting."""
 
     STRIKETHROUGH = 1 << 0
-    """Used to remove strikethroughs caused by 2 tildes."""
+    """
+    Used to remove strikethroughs caused by 2 tildes.
+
+    Ex: ~example text~
+    """
 
     ITALIC_UNDERSCORE = 1 << 1
-    """Used to remove italic caused by underscores."""
+    """
+    Used to remove italic caused by underscores.
+
+    Ex: _example text_
+    """
 
     ITALIC_ASTERISK = 1 << 2
-    """Used to remove italic caused by asterisks."""
+    """
+    Used to remove italic caused by asterisks.
+
+    Ex: *example text*
+    """
 
     BOLD = 1 << 3
-    """Used to remove bold caused by 2 asterisks."""
+    """
+    Used to remove bold caused by 2 asterisks.
+
+    Ex: **example text**
+    """
 
     UNDERLINE = 1 << 4
-    """Used to remove underlining caused by 2 underscores."""
+    """
+    Used to remove underlining caused by 2 underscores.
+
+    Ex: __example text__
+    """
 
     CODE_BLOCK = 1 << 5
-    """Used to remove code blocks caused by backticks."""
+    """
+    Used to remove code blocks caused by backticks.
+    
+    Ex: `sample text` and ``other sample text```
+    """
 
     MULTI_CODE_BLOCK = 1 << 6
-    """Used to remove multiline code blocks caused by 3 backticks."""
+    """
+    Used to remove multiline code blocks caused by 3 backticks.
+    
+    Note: This will not remove the language name from the first line
+    
+    Ex: ```python
+    print("hello")
+    ```
+    """
 
     QUOTE = 1 << 7
-    """Used to remove quotes caused by a bigger than at the start of the line followed by a whitespace character."""
+    """
+    Used to remove quotes caused by a bigger than at the start of the line followed by a whitespace character.
+    
+    Ex: > example text
+    """
 
     MULTI_QUOTE = 1 << 8
-    """Used to remove multiline quotes caused by 3 bigger thans at the start of the line followed by a whitespace character."""
+    """
+    Used to remove multiline quotes caused by 3 greater than symbols at the start of the line followed by a whitespace
+    character.
+    
+    Ex: >>> example text
+    """
 
     SPOILER = 1 << 9
-    """Used to remove spoilers caused by 2 pipes."""
+    """
+    Used to remove spoilers caused by 2 pipes.
+    
+    Ex: ||example text||
+    """
+
+    LARGE_HEADER = 1 << 10
+    """
+    Used to remove headers caused by one hashtag
+    
+    Ex: # example text
+    """
+
+    MEDIUM_HEADER = 1 << 11
+    """
+    Used to remove headers caused by two hashtags
+
+    Ex: ## example text
+    """
+
+    SMALL_HEADER = 1 << 12
+    """
+    Used to remove headers caused by three hashtags
+
+    Ex: ### example text
+    """
+
+    ORDERED_LIST = 1 << 13
+    """
+    Used to remove an ordered list caused by a number followed by a period and space at the beginning of a line
+
+    Ex: 1. example text
+
+    Note: Discord will display any number over 50 as 50, but the raw message still contains the original number
+    """
+
+    UNORDERED_LIST_DASH = 1 << 14
+    """
+    Used to remove an unordered list caused by an asterisk or dash followed by a space at the beginning of a line
+    
+    Ex: - example text
+    """
+
+    UNORDERED_LIST_ASTERISK = 1 << 15
+    """
+    Used to remove an unordered list caused by an asterisk followed by a space at the beginning of a line
+        
+    Ex: * example text
+    """
+
+    ALL_ITALIC = (
+            ITALIC_UNDERSCORE
+            | ITALIC_ASTERISK
+    )
+    """Used to remove all italic styling"""
+
+    ALL_CODE = (
+            CODE_BLOCK
+            | MULTI_CODE_BLOCK
+    )
+    """Used to remove both single and multi line code blocks"""
+
+    ALL_QUOTES = (
+            QUOTE
+            | MULTI_QUOTE
+    )
+    """Used to remove both single line and multi line quotes"""
+
+    ALL_HEADERS = (
+            LARGE_HEADER
+            | MEDIUM_HEADER
+            | SMALL_HEADER
+    )
+    """Used to remove all sizes of headers"""
+
+    ALL_UNORDERED_LISTS = (
+            UNORDERED_LIST_DASH
+            | UNORDERED_LIST_ASTERISK
+    )
+    """Used to remove unordered lists started with both dashes and asterisks"""
+
+    ALL_LISTS = (
+            ORDERED_LIST
+            | ALL_UNORDERED_LISTS
+    )
+    """Used to remove both ordered and unordered lists"""
 
     ALL = (
-        STRIKETHROUGH
-        | ITALIC_UNDERSCORE
-        | ITALIC_ASTERISK
-        | BOLD
-        | UNDERLINE
-        | CODE_BLOCK
-        | MULTI_CODE_BLOCK
-        | QUOTE
-        | MULTI_QUOTE
-        | SPOILER
+            STRIKETHROUGH
+            | ALL_ITALIC
+            | BOLD
+            | UNDERLINE
+            | ALL_CODE
+            | ALL_QUOTES
+            | SPOILER
+            | ALL_HEADERS
+            | ALL_LISTS
     )
     """Used to remove all possible formatting."""
 
@@ -98,15 +224,21 @@ FORMAT_DICT = {
     # First value is the regex pattern of the affiliated enum flag, the match includes the formatting that causes it.
     # Second value is the amount of characters that will be sliced off the match.
     MarkdownFormat.MULTI_CODE_BLOCK: (re.compile(r"(`{3}[^`]+`{3})"), 3),
-    MarkdownFormat.CODE_BLOCK: (re.compile(r"(`[^`]+`)"), 1),
-    MarkdownFormat.MULTI_QUOTE: (re.compile(r"\s*>{3} ([\s\S]+)"), 0),
-    MarkdownFormat.QUOTE: (re.compile(r"\s*> ([\s\S]+)"), 0),
+    MarkdownFormat.CODE_BLOCK: (re.compile(r"(`{1,2}[^`]+`{1,2})"), 1),
+    MarkdownFormat.MULTI_QUOTE: (re.compile(r">{3} ([\s\S]+)", re.MULTILINE), 0),
+    MarkdownFormat.QUOTE: (re.compile(r"> ([\s\S]+)", re.MULTILINE), 0),
     MarkdownFormat.BOLD: (re.compile(r"(\*{2}[^*]+\*{2})"), 2),
     MarkdownFormat.UNDERLINE: (re.compile(r"(__[^_]+__)"), 2),
     MarkdownFormat.STRIKETHROUGH: (re.compile(r"(~~[^~]+~~)"), 2),
     MarkdownFormat.ITALIC_UNDERSCORE: (re.compile(r"(_[^_]+_)"), 1),
     MarkdownFormat.ITALIC_ASTERISK: (re.compile(r"(\*[^*]+\*)"), 1),
     MarkdownFormat.SPOILER: (re.compile(r"(\|{2}[^|]+\|{2})"), 2),
+    MarkdownFormat.LARGE_HEADER: (re.compile(r"^#{3} ", re.MULTILINE), 0),
+    MarkdownFormat.MEDIUM_HEADER: (re.compile(r"^#{2} ", re.MULTILINE), 0),
+    MarkdownFormat.SMALL_HEADER: (re.compile(r"^# ", re.MULTILINE), 0),
+    MarkdownFormat.ORDERED_LIST: (re.compile(r"^\d+. ", re.MULTILINE), 0),
+    MarkdownFormat.UNORDERED_LIST_DASH: (re.compile(r"^- ", re.MULTILINE), 0),
+    MarkdownFormat.UNORDERED_LIST_ASTERISK: (re.compile(r"^* ", re.MULTILINE), 0),
 }
 
 
